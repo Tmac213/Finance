@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mint Mosaic Hub</string>
+    <string name="title_activity_main">Mint Mosaic Hub</string>
+    <string name="package_name">com.mintmosaichub.app</string>
+    <string name="custom_url_scheme">com.mintmosaichub.app</string>
+</resources>

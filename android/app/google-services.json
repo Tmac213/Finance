@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1050054620250",
+    "project_id": "misthub-696e9",
+    "storage_bucket": "misthub-696e9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1050054620250:android:85478bdfb4af00a5f6d463",
+        "android_client_info": {
+          "package_name": "com.mintmosaichub.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCa5qV-k3-z79HEOenFRvYTt0ahvlJ4UBk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

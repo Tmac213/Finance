@@ -1,0 +1,10 @@
+{
+	"appId": "com.mintmosaichub.app",
+	"appName": "Mint Mosaic Hub",
+	"webDir": "dist",
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": false
+		}
+	}
+}
