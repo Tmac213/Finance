@@ -16,6 +16,7 @@ import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import FixedDues from './pages/FixedDues';
 import VibesSalary from './pages/VibesSalary';
+import Salary from './pages/Salary';
 import MoneyTracking from './pages/MoneyTracking';
 import CurrencyCalculator from './pages/CurrencyCalculator';
 import BullionTracking from './pages/BullionTracking';
@@ -53,6 +54,7 @@ const App = () => {
                           <Route path="/transactions" element={<Transactions />} />
                           <Route path="/fixed-dues" element={<FixedDues />} />
                           <Route path="/vibes-salary" element={<VibesSalary />} />
+                          <Route path="/salary" element={<Salary />} />
                           <Route path="/money-tracking" element={<MoneyTracking />} />
                           <Route
                             path="/currency-calculator"

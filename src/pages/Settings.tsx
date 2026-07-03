@@ -45,7 +45,8 @@ export default function Settings() {
     fixedDues,
     bullionHoldings,
     moneyHoldings,
-    vibesSalary
+    vibesSalary,
+    salary
   } = useFinance();
   const { signOut } = useAuth();
   const { settings: notificationSettings, updateSettings: updateNotificationSettings, requestPermission, sendTestNotification } = useNotification();
@@ -110,7 +111,8 @@ export default function Settings() {
         fixedDues,
         bullionHoldings,
         moneyHoldings,
-        vibesSalary
+        vibesSalary,
+        salary
       );
 
       toast({

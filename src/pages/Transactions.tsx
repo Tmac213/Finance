@@ -319,7 +319,7 @@ export default function Transactions() {
       toast({
         title: 'Cannot Delete',
         description:
-          'This transaction is linked to a Fixed Due or Vibes Salary payment and cannot be deleted directly.',
+          'This transaction is linked to a Fixed Due, Vibes Salary, or Salary payment and cannot be deleted directly.',
         variant: 'destructive',
       });
       return;

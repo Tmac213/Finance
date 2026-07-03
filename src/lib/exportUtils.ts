@@ -1,14 +1,15 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { BullionHoldings, Transaction, FixedDue, VibesSalary, MoneyHoldings } from '@/contexts/FinanceContext';
+import { BullionHoldings, Transaction, FixedDue, VibesSalary, Salary, MoneyHoldings } from '@/contexts/FinanceContext';
 
 export function exportComprehensivePDF(
   transactions: Transaction[],
   fixedDues: FixedDue[],
   bullionHoldings: BullionHoldings,
   moneyHoldings: MoneyHoldings,
-  vibesSalary: VibesSalary
+  vibesSalary: VibesSalary,
+  salary: Salary
 ) {
   const doc = new jsPDF();
   const dateStr = new Date().toLocaleDateString();
@@ -39,6 +40,7 @@ export function exportComprehensivePDF(
       ['Total Transactions', totalTransactions.toString()],
       ['Pending Fixed Dues', unpaidDues.toString()],
       ['Vibes Salary (Expected)', vibesSalary.expectedAmount.toFixed(2)],
+      ['Salary (Expected)', salary.expectedAmount.toFixed(2)],
     ],
     theme: 'striped',
   });
@@ -114,6 +116,18 @@ export function exportComprehensivePDF(
     startY: (doc as any).lastAutoTable.finalY + 20,
     head: [['Date', 'Amount', 'Notes']],
     body: vibesSalary.payments.map((p) => [
+      p.date,
+      p.amount.toFixed(2),
+      p.notes || '',
+    ]),
+  });
+
+  // Salary Section
+  doc.text('Salary Payments', 14, (doc as any).lastAutoTable.finalY + 15);
+  autoTable(doc, {
+    startY: (doc as any).lastAutoTable.finalY + 20,
+    head: [['Date', 'Amount', 'Notes']],
+    body: salary.payments.map((p) => [
       p.date,
       p.amount.toFixed(2),
       p.notes || '',
@@ -293,6 +307,52 @@ export function exportVibesSalaryToExcel(vibes: VibesSalary) {
   XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
   XLSX.utils.book_append_sheet(wb, paymentsSheet, 'Payments');
   XLSX.writeFile(wb, 'vibes-salary.xlsx');
+}
+
+export function exportSalaryToPDF(sal: Salary) {
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text('Salary Summary', 14, 18);
+
+  autoTable(doc, {
+    startY: 24,
+    head: [['Expected Amount', 'Total Payments']],
+    body: [[
+      sal.expectedAmount.toFixed(2),
+      sal.payments.reduce((s, p) => s + p.amount, 0).toFixed(2),
+    ]],
+  });
+
+  const paymentRows = sal.payments.map((p) => [
+    p.date,
+    p.amount.toFixed(2),
+    p.notes || '',
+  ]);
+
+  autoTable(doc, {
+    startY: (doc as any).lastAutoTable.finalY + 8,
+    head: [['Date', 'Amount', 'Notes']],
+    body: paymentRows,
+  });
+
+  doc.save('salary.pdf');
+}
+
+export function exportSalaryToExcel(sal: Salary) {
+  const summarySheet = XLSX.utils.aoa_to_sheet([
+    ['Expected Amount', 'Total Payments'],
+    [sal.expectedAmount, sal.payments.reduce((s, p) => s + p.amount, 0)],
+  ]);
+
+  const paymentsSheet = XLSX.utils.aoa_to_sheet([
+    ['Date', 'Amount', 'Notes'],
+    ...sal.payments.map((p) => [p.date, p.amount, p.notes || '']),
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+  XLSX.utils.book_append_sheet(wb, paymentsSheet, 'Payments');
+  XLSX.writeFile(wb, 'salary.xlsx');
 }
 
 

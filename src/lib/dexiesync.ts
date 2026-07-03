@@ -19,6 +19,7 @@ type SyncStats = {
   fixedDues: EntityStats;
   testItems: EntityStats;
   vibesSalary: EntityStats;
+  salary: EntityStats;
   bullionHoldings: EntityStats;
   moneyHoldings: EntityStats;
   userSettings: EntityStats;
@@ -33,6 +34,7 @@ const createStats = (): SyncStats => ({
   fixedDues: { sent: 0, updated: 0, deleted: 0, received: 0 },
   testItems: { sent: 0, updated: 0, deleted: 0, received: 0 },
   vibesSalary: { sent: 0, updated: 0, deleted: 0, received: 0 },
+  salary: { sent: 0, updated: 0, deleted: 0, received: 0 },
   bullionHoldings: { sent: 0, updated: 0, deleted: 0, received: 0 },
   moneyHoldings: { sent: 0, updated: 0, deleted: 0, received: 0 },
   userSettings: { sent: 0, updated: 0, deleted: 0, received: 0 },
@@ -147,9 +149,25 @@ export const dexieSync = {
         const vibe = dirtyVibes[0];
         const ref = doc(firestoreDb, 'users', userId, 'vibes_salary', 'main');
         const { dirty, synced, ...data } = vibe;
-        await setDoc(ref, { ...sanitizeData(data), updatedAt: Timestamp.now() }, { merge: true });
+        await setDoc(ref, { ...sanitizeData(data), updatedAt: Timestamp.now() });
         await dexieDb.vibes_salary.update(vibe.id, { dirty: 0, synced: 1 });
         stats.vibesSalary.sent++;
+// Duplicate vibesSalary to Salary singleton
+const salaryRefDup = doc(firestoreDb, 'users', userId, 'salary', 'main');
+await setDoc(salaryRefDup, { ...sanitizeData(data), updatedAt: Timestamp.now() });
+await dexieDb.salary.put({ ...data, id: vibe.id, user_id: userId, dirty: 0, synced: 1 });
+stats.salary.sent++;
+      }
+
+      // --- SALARY ---
+      const dirtySalary = await dexieDb.salary.where('dirty').equals(1).toArray();
+      if (dirtySalary.length > 0) {
+        const sal = dirtySalary[0];
+        const ref = doc(firestoreDb, 'users', userId, 'salary', 'main');
+        const { dirty, synced, ...data } = sal;
+        await setDoc(ref, { ...sanitizeData(data), updatedAt: Timestamp.now() });
+        await dexieDb.salary.update(sal.id, { dirty: 0, synced: 1 });
+        stats.salary.sent++;
       }
 
       // --- BULLION HOLDINGS ---
@@ -262,6 +280,7 @@ export const dexieSync = {
       // --- SINGLETONS ---
       const singletons = [
         { key: 'vibes_salary', dbTable: dexieDb.vibes_salary, stat: stats.vibesSalary },
+        { key: 'salary', dbTable: dexieDb.salary, stat: stats.salary },
         { key: 'bullion_holdings', dbTable: dexieDb.bullion_holdings, stat: stats.bullionHoldings },
         { key: 'money_holdings', dbTable: dexieDb.money_holdings, stat: stats.moneyHoldings },
         { key: 'user_settings', dbTable: dexieDb.user_settings, stat: stats.userSettings },
@@ -320,7 +339,7 @@ export const dexieSync = {
       }));
     });
 
-    const singletons = ['vibes_salary', 'bullion_holdings', 'money_holdings', 'user_settings'];
+    const singletons = ['vibes_salary', 'salary', 'bullion_holdings', 'money_holdings', 'user_settings'];
     singletons.forEach(docName => {
       const ref = doc(firestoreDb, 'users', userId, docName, 'main');
       unsubscribes.push(onSnapshot(ref, (doc) => {

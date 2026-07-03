@@ -51,6 +51,23 @@ export interface VibesSalaryRow {
   deleted?: number;
 }
 
+export interface SalaryRow {
+  id: string;
+  user_id: string;
+  expected_amount?: number;
+  monthly_expected_amounts?: Record<string, number>;
+  payments?: Array<{
+    id: string;
+    amount: number;
+    date: string;
+    notes?: string;
+  }>;
+  synced?: number;
+  dirty?: number;
+  last_modified?: number;
+  deleted?: number;
+}
+
 export interface BullionHoldingsRow {
   id: string;
   user_id: string;
@@ -129,7 +146,7 @@ export interface HistoryLogRow {
   id: string;
   user_id: string;
   entity_id: string;
-  entity_type: 'transaction' | 'fixed-due' | 'vibes-salary' | 'bullion-holdings' | 'money-holdings';
+  entity_type: 'transaction' | 'fixed-due' | 'vibes-salary' | 'salary' | 'bullion-holdings' | 'money-holdings';
   action: 'add' | 'update' | 'delete';
   before?: string; // JSON string
   after?: string; // JSON string
@@ -179,6 +196,7 @@ class AppDatabase extends Dexie {
   transactions!: Table<TransactionRow, string>;
   fixed_dues!: Table<FixedDueRow, string>;
   vibes_salary!: Table<VibesSalaryRow, string>;
+  salary!: Table<SalaryRow, string>;
   bullion_holdings!: Table<BullionHoldingsRow, string>;
   test_items!: Table<TestItemRow, string>;
   money_holdings!: Table<MoneyHoldingsRow, string>;
@@ -266,6 +284,11 @@ class AppDatabase extends Dexie {
     this.version(13).stores({
       medication_profiles: 'id, user_id, last_modified, dirty, deleted',
       medications: 'id, user_id, profile_id, last_modified, dirty, deleted',
+    });
+
+    // Version 14: Add salary table
+    this.version(14).stores({
+      salary: 'id, user_id, last_modified, dirty, deleted',
     });
   }
 }

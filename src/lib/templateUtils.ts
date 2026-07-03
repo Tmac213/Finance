@@ -187,3 +187,59 @@ export function generateVibesSalaryTemplate() {
     // Generate Excel file and trigger download
     XLSX.writeFile(workbook, 'vibes_salary_template.xlsx');
 }
+
+/**
+ * Generates and downloads a template Excel file for Salary payments
+ */
+export function generateSalaryTemplate() {
+    // Create sample data with headers
+    const templateData = [
+        {
+            'Amount': 5000,
+            'Date': '2024-01-31',
+            'Notes': 'January salary payment'
+        },
+        {
+            'Amount': 5000,
+            'Date': '2024-02-29',
+            'Notes': 'February salary payment'
+        },
+        {
+            'Amount': 5250,
+            'Date': '2024-03-31',
+            'Notes': 'March salary with bonus'
+        }
+    ];
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+
+    // Set column widths for better readability
+    worksheet['!cols'] = [
+        { wch: 12 },  // Amount
+        { wch: 12 },  // Date
+        { wch: 30 }   // Notes
+    ];
+
+    // Create workbook and add worksheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Salary Template');
+
+    // Add instructions sheet
+    const instructions = [
+        { 'Field': 'Amount', 'Description': 'Payment amount in dollars (must be greater than 0)', 'Example': '5000' },
+        { 'Field': 'Date', 'Description': 'Payment date in YYYY-MM-DD format (required)', 'Example': '2024-01-31' },
+        { 'Field': 'Notes', 'Description': 'Optional notes about the payment', 'Example': 'January salary payment' },
+    ];
+
+    const instructionsSheet = XLSX.utils.json_to_sheet(instructions);
+    instructionsSheet['!cols'] = [
+        { wch: 15 },  // Field
+        { wch: 50 },  // Description
+        { wch: 25 }   // Example
+    ];
+    XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
+
+    // Generate Excel file and trigger download
+    XLSX.writeFile(workbook, 'salary_template.xlsx');
+}

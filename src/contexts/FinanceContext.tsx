@@ -67,6 +67,17 @@ export interface VibesSalary {
   }[];
 }
 
+export interface Salary {
+  expectedAmount: number;
+  monthlyExpectedAmounts?: Record<string, number>; // YYYY-MM -> amount
+  payments: {
+    id: string;
+    amount: number;
+    date: string;
+    notes?: string;
+  }[];
+}
+
 export interface BullionItem {
   id: string;
   type: string;
@@ -144,6 +155,17 @@ interface FinanceContextType {
   ) => Promise<void>;
   deleteVibesSalaryPayment: (paymentId: string) => Promise<void>;
   syncSalaryToTransactions: (updatedSalary?: VibesSalary) => Promise<number>;
+  salary: Salary;
+  updateSalary: (salary: Partial<Salary>) => Promise<void>;
+  addSalaryPayment: (
+    payment: Omit<Salary['payments'][0], 'id'>
+  ) => Promise<void>;
+  updateSalaryPayment: (
+    paymentId: string,
+    payment: Partial<Salary['payments'][0]>
+  ) => Promise<void>;
+  deleteSalaryPayment: (paymentId: string) => Promise<void>;
+  syncGeneralSalaryToTransactions: (updatedSalary?: Salary) => Promise<number>;
   updateBullionHoldings: (
     holdings: BullionHoldings
   ) => Promise<{ success: boolean; error?: string }>;
@@ -183,6 +205,10 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
     expectedAmount: 0,
     payments: [],
   });
+  const [salary, setSalary] = useState<Salary>({
+    expectedAmount: 0,
+    payments: [],
+  });
   const [bullionHoldings, setBullionHoldings] = useState<BullionHoldings>([]);
   const [moneyHoldings, setMoneyHoldings] = useState<MoneyHoldings>({
     holdings: {},
@@ -219,7 +245,7 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
 
   const addHistoryLog = async (params: {
     entity_id: string;
-    entity_type: 'transaction' | 'fixed-due' | 'vibes-salary' | 'bullion-holdings' | 'money-holdings';
+    entity_type: 'transaction' | 'fixed-due' | 'vibes-salary' | 'salary' | 'bullion-holdings' | 'money-holdings';
     action: 'add' | 'update' | 'delete';
     before?: any;
     after?: any;
@@ -336,6 +362,10 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
       if (localVibesSalary) {
         setVibesSalary(JSON.parse(localVibesSalary));
       }
+      const localSalary = localStorage.getItem('guestSalary');
+      if (localSalary) {
+        setSalary(JSON.parse(localSalary));
+      }
       const localHoldings = localStorage.getItem('bullionHoldings');
       if (localHoldings) {
         setBullionHoldings(JSON.parse(localHoldings));
@@ -358,10 +388,11 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
         return;
       }
 
-      const [trans, dues, salary, holdings, money, settings, recurring] = await Promise.all([
+      const [trans, dues, vibesSalaryData, salaryData, holdings, money, settings, recurring] = await Promise.all([
         db.transactions.where('user_id').equals(user.uid).toArray(),
         db.fixed_dues.where('user_id').equals(user.uid).toArray(),
         db.vibes_salary.where('user_id').equals(user.uid).first(),
+        db.salary.where('user_id').equals(user.uid).first(),
         db.bullion_holdings.where('user_id').equals(user.uid).first(),
         db.money_holdings.where('user_id').equals(user.uid).first(),
         db.user_settings.where('user_id').equals(user.uid).first(),
@@ -375,7 +406,7 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
         amount: t.amount || 0,
         category: t.category || '',
         date: t.date || '',
-        source: t.source as 'transaction' | 'fixed-due' | 'vibes-salary',
+        source: t.source as 'transaction' | 'fixed-due' | 'vibes-salary' | 'salary',
         source_id: t.source_id,
       })));
 
@@ -497,11 +528,19 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
       setFixedDues(mappedDues);
       console.log(`[loadLocalData] State updated with ${mappedDues.length} fixed dues`);
 
-      if (salary && !Boolean(salary.deleted)) {
+      if (vibesSalaryData && !Boolean(vibesSalaryData.deleted)) {
         setVibesSalary({
-          expectedAmount: salary.expected_amount || 0,
-          monthlyExpectedAmounts: salary.monthly_expected_amounts || {},
-          payments: salary.payments || [],
+          expectedAmount: vibesSalaryData.expected_amount || 0,
+          monthlyExpectedAmounts: vibesSalaryData.monthly_expected_amounts || {},
+          payments: vibesSalaryData.payments || [],
+        });
+      }
+
+      if (salaryData && !Boolean(salaryData.deleted)) {
+        setSalary({
+          expectedAmount: salaryData.expected_amount || 0,
+          monthlyExpectedAmounts: salaryData.monthly_expected_amounts || {},
+          payments: salaryData.payments || [],
         });
       }
 
@@ -1552,9 +1591,283 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
     return inputsAdded.length + inputsUpdated.length + orphans.length;
   };
 
+  const updateSalary = async (salaryUpdate: Partial<Salary>, skipSync = false) => {
+    if (!user) {
+      setSalary((prev) => {
+        const updated = { ...prev, ...salaryUpdate };
+        localStorage.setItem('guestSalary', JSON.stringify(updated));
+        return updated;
+      });
+      return;
+    }
+
+    const currentSalary = salary;
+
+    const newExpectedAmount = salaryUpdate.expectedAmount !== undefined
+      ? salaryUpdate.expectedAmount
+      : currentSalary.expectedAmount;
+
+    const newMonthlyAmounts = salaryUpdate.monthlyExpectedAmounts !== undefined
+      ? salaryUpdate.monthlyExpectedAmounts
+      : currentSalary.monthlyExpectedAmounts;
+
+    const newPayments = salaryUpdate.payments !== undefined
+      ? salaryUpdate.payments
+      : currentSalary.payments;
+
+    const updateData = {
+      expected_amount: newExpectedAmount,
+      monthly_expected_amounts: newMonthlyAmounts,
+      payments: newPayments,
+      dirty: 1,
+      last_modified: Date.now(),
+    };
+
+    const oldSalary = { ...salary };
+
+    await db.salary.put({
+      id: user.uid,
+      user_id: user.uid,
+      ...updateData,
+    });
+
+    const newSalary = { ...salary, ...salaryUpdate };
+    await addHistoryLog({
+      entity_id: user.uid,
+      entity_type: 'salary',
+      action: 'update',
+      before: oldSalary,
+      after: newSalary,
+    });
+
+    setSalary((prev) => ({ ...prev, ...salaryUpdate }));
+    if (!skipSync) {
+      await syncData(true);
+    }
+  };
+
+  const addSalaryPayment = async (
+    payment: Omit<Salary['payments'][0], 'id'>
+  ) => {
+    const newPayment = {
+      ...payment,
+      id: generateId(),
+    };
+
+    if (!user) {
+      setSalary((prev) => {
+        const updated = {
+          ...prev,
+          payments: [newPayment, ...prev.payments],
+        };
+        localStorage.setItem('guestSalary', JSON.stringify(updated));
+        return updated;
+      });
+      return;
+    }
+
+    const updatedSalary = {
+      ...salary,
+      payments: [...salary.payments, newPayment],
+    };
+
+    await updateSalary(updatedSalary);
+  };
+
+  const updateSalaryPayment = async (
+    paymentId: string,
+    payment: Partial<Salary['payments'][0]>
+  ) => {
+    const updatedPayments = salary.payments.map((p) =>
+      p.id === paymentId ? { ...p, ...payment } : p
+    );
+    const updatedSalary = { ...salary, payments: updatedPayments };
+    await updateSalary({ payments: updatedPayments }, true);
+    await syncGeneralSalaryToTransactions(updatedSalary);
+  };
+
+  const deleteSalaryPayment = async (paymentId: string) => {
+    const updatedPayments = salary.payments.filter(
+      (p) => p.id !== paymentId
+    );
+    const updatedSalary = { ...salary, payments: updatedPayments };
+    await updateSalary({ payments: updatedPayments }, true);
+    await syncGeneralSalaryToTransactions(updatedSalary);
+  };
+
+  const calculateGeneralSalaryAllocations = (currentSalary: Salary) => {
+    const months: string[] = [];
+    const startDate = new Date('2023-05-01');
+    const futureDate = new Date();
+    futureDate.setFullYear(futureDate.getFullYear() + 2);
+
+    const current = new Date(startDate);
+    while (current <= futureDate) {
+      months.push(format(current, 'yyyy-MM'));
+      current.setMonth(current.getMonth() + 1);
+    }
+
+    const allocation: Record<string, number> = {};
+    months.forEach(m => allocation[m] = 0);
+
+    const sortedPayments = [...currentSalary.payments]
+      .reverse()
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const allocatedTransactions: Array<{
+      paymentId: string;
+      month: string;
+      amount: number;
+      date: string;
+      notes?: string;
+    }> = [];
+
+    sortedPayments.forEach((payment) => {
+      let remainingAmount = payment.amount;
+
+      for (const monthYear of months) {
+        if (remainingAmount <= 0) break;
+
+        const expected = currentSalary.monthlyExpectedAmounts?.[monthYear] || currentSalary.expectedAmount;
+        const alreadyAllocated = allocation[monthYear];
+
+        if (alreadyAllocated < expected) {
+          const needed = expected - alreadyAllocated;
+          const allocateAmount = Math.min(remainingAmount, needed);
+          const safeAllocatedAmount = Math.round(allocateAmount * 100) / 100;
+
+          if (safeAllocatedAmount > 0) {
+            allocation[monthYear] += safeAllocatedAmount;
+            allocatedTransactions.push({
+              paymentId: payment.id,
+              month: monthYear,
+              amount: safeAllocatedAmount,
+              date: payment.date,
+              notes: payment.notes
+            });
+            remainingAmount -= safeAllocatedAmount;
+          }
+        }
+      }
+
+      if (remainingAmount > 0.005) {
+        const paymentMonth = format(new Date(payment.date), 'yyyy-MM');
+        allocatedTransactions.push({
+          paymentId: payment.id,
+          month: paymentMonth,
+          amount: Math.round(remainingAmount * 100) / 100,
+          date: payment.date,
+          notes: payment.notes
+        });
+      }
+    });
+
+    return allocatedTransactions;
+  };
+
+  const syncGeneralSalaryToTransactions = async (updatedSalary?: Salary) => {
+    const salaryToUse = updatedSalary || salary;
+
+    const allocations = calculateGeneralSalaryAllocations(salaryToUse);
+    const existingSalaryTxns = transactions.filter(t => t.source === 'salary');
+
+    const inputsAdded: Transaction[] = [];
+    const inputsUpdated: Transaction[] = [];
+    const idsToKeep = new Set<string>();
+    const updatePromises: Promise<any>[] = [];
+
+    allocations.forEach(alloc => {
+      const sourceId = `${alloc.paymentId}_${alloc.month}`;
+      const existing = existingSalaryTxns.find(t => t.source_id === sourceId);
+
+      const txnData = {
+        type: 'income' as const,
+        amount: alloc.amount,
+        category: 'Salary',
+        date: alloc.date,
+        description: `Salary Payment ${format(new Date(alloc.month + '-01'), 'MMMM yyyy')}${alloc.notes ? ` (${alloc.notes})` : ''}`,
+        source: 'salary' as const,
+        source_id: sourceId
+      };
+
+      if (existing) {
+        idsToKeep.add(existing.id);
+        if (existing.amount !== txnData.amount || existing.description !== txnData.description || existing.date !== txnData.date) {
+          if (user) {
+            updatePromises.push(db.transactions.update(existing.id, {
+              ...txnData,
+              dirty: 1,
+              last_modified: Date.now()
+            }));
+          }
+          inputsUpdated.push({ ...existing, ...txnData });
+        }
+      } else {
+        inputsAdded.push({
+          id: generateId(),
+          ...txnData
+        });
+      }
+    });
+
+    const orphans = existingSalaryTxns.filter(t => !idsToKeep.has(t.id));
+
+    if (inputsAdded.length === 0 && inputsUpdated.length === 0 && orphans.length === 0) return 0;
+
+    if (user) {
+      if (orphans.length > 0) {
+        updatePromises.push(...orphans.map(t => db.transactions.update(t.id, { deleted: 1, dirty: 1, last_modified: Date.now() })));
+      }
+
+      if (inputsAdded.length > 0) {
+        updatePromises.push(db.transactions.bulkAdd(inputsAdded.map(t => ({
+          id: t.id,
+          user_id: user.uid,
+          type: t.type,
+          description: t.description,
+          amount: t.amount,
+          category: t.category,
+          date: t.date,
+          source: t.source,
+          source_id: t.source_id,
+          synced: 0,
+          dirty: 1,
+          last_modified: Date.now(),
+        }))));
+      }
+
+      await Promise.all(updatePromises);
+    }
+
+    setTransactions(prev => {
+      let updated = [...prev];
+      const orphanIds = new Set(orphans.map(t => t.id));
+      updated = updated.filter(t => !orphanIds.has(t.id));
+
+      inputsUpdated.forEach(u => {
+        const idx = updated.findIndex(t => t.id === u.id);
+        if (idx !== -1) updated[idx] = u;
+      });
+
+      updated = [...inputsAdded, ...updated];
+
+      if (!user) {
+        localStorage.setItem('guestTransactions', JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    try {
+      await syncData(true);
+    } catch (e) {
+      console.warn('Auto-sync network warning:', e);
+    }
+
+    return inputsAdded.length + inputsUpdated.length + orphans.length;
+  };
+
   const syncFixedDuesToTransactions = async () => {
     // Only proceed if we have data
-    if (fixedDues.length === 0) return 0;
 
     // Filter for paid dues
     const paidDues = fixedDues.filter(d => Boolean(d.isPaid));
@@ -1712,11 +2025,12 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
     // Debounce slightly to avoid running during rapid updates
     const timer = setTimeout(() => {
       syncSalaryToTransactions();
+      syncGeneralSalaryToTransactions();
       syncFixedDuesToTransactions();
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [vibesSalary.payments, transactions.length, fixedDues]); // Watch full fixedDues object to catch status changes
+  }, [vibesSalary.payments, salary.payments, transactions.length, fixedDues]); // Watch full fixedDues object to catch status changes
 
 
   const updateBullionHoldings = async (
@@ -2048,6 +2362,12 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
         updateVibesSalaryPayment,
         deleteVibesSalaryPayment,
         syncSalaryToTransactions,
+        salary,
+        updateSalary,
+        addSalaryPayment,
+        updateSalaryPayment,
+        deleteSalaryPayment,
+        syncGeneralSalaryToTransactions,
         updateBullionHoldings,
         updateMoneyHoldings,
         updateUserSettings,

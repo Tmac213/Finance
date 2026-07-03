@@ -44,6 +44,7 @@ const items = [
   { title: 'Transactions', url: '/transactions', icon: ArrowLeftRight },
   { title: 'Fixed Dues', url: '/fixed-dues', icon: Calendar },
   { title: 'Vibes Salary', url: '/vibes-salary', icon: Wallet },
+  { title: 'Salary', url: '/salary', icon: Wallet },
   { title: 'Money Tracking', url: '/money-tracking', icon: PiggyBank },
   {
     title: 'Currency Calculator',

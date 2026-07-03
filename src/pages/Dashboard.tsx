@@ -48,6 +48,7 @@ export default function Dashboard() {
     transactions,
     fixedDues,
     vibesSalary,
+    salary,
     moneyHoldings,
     bullionHoldings,
     bullionPrices,
@@ -234,6 +235,122 @@ export default function Dashboard() {
       recentMonths,
     };
   }, [vibesSalary]);
+
+  // Salary summary - Use same logic as Salary page
+  const salarySummary = useMemo(() => {
+    if (!salary) return { total: 0, remaining: 0, spent: 0, recentMonths: [] };
+
+    const total = salary.expectedAmount || 0;
+    const payments = salary.payments || [];
+    const monthlyExpected = salary.monthlyExpectedAmounts || {};
+    const spent = payments.reduce((sum, p) => sum + p.amount, 0);
+    const remaining = total - spent;
+
+    // Helper function to get expected amount for a month
+    const getExpectedForMonth = (monthKey: string) => {
+      return monthlyExpected[monthKey] || total;
+    };
+
+    // Generate month range from May 2023 to 2 years in future
+    const generateMonthRange = () => {
+      const months = [];
+      const startDate = new Date('2023-05-01');
+      const futureDate = new Date();
+      futureDate.setFullYear(futureDate.getFullYear() + 2);
+
+      const current = new Date(startDate);
+      while (current <= futureDate) {
+        months.push(format(current, 'yyyy-MM'));
+        current.setMonth(current.getMonth() + 1);
+      }
+      return months;
+    };
+
+    // Allocate payments FIFO
+    const months = generateMonthRange();
+    const allocation: Record<string, { allocated: number }> = {};
+
+    months.forEach((month) => {
+      allocation[month] = { allocated: 0 };
+    });
+
+    const sortedPayments = [...payments]
+      .reverse()
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    sortedPayments.forEach((payment) => {
+      let remainingAmount = payment.amount;
+
+      for (const monthYear of months) {
+        if (remainingAmount <= 0) break;
+
+        const expected = getExpectedForMonth(monthYear);
+        const alreadyAllocated = allocation[monthYear].allocated;
+
+        if (alreadyAllocated < expected) {
+          const needed = expected - alreadyAllocated;
+          const allocateAmount = Math.min(remainingAmount, needed);
+
+          allocation[monthYear].allocated += allocateAmount;
+          remainingAmount -= allocateAmount;
+        }
+      }
+
+      if (remainingAmount > 0) {
+        const paymentMonth = format(new Date(payment.date), 'yyyy-MM');
+        if (allocation[paymentMonth]) {
+          allocation[paymentMonth].allocated += remainingAmount;
+        }
+      }
+    });
+
+    // Get last 5 months
+    const now = new Date();
+    const recentMonthKeys = [];
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      recentMonthKeys.push(format(date, 'yyyy-MM'));
+    }
+
+    // Calculate status for recent months
+    const recentMonths = recentMonthKeys.map(monthKey => {
+      const expected = getExpectedForMonth(monthKey);
+      const paid = allocation[monthKey]?.allocated || 0;
+      const unpaid = Math.max(0, expected - paid);
+
+      let status: 'paid' | 'partial' | 'unpaid' = 'unpaid';
+
+      if (expected > 0 && paid >= expected) {
+        status = 'paid';
+      } else if (paid > 0 && expected > 0 && paid < expected) {
+        status = 'partial';
+      } else if (expected > 0 && paid === 0) {
+        status = 'unpaid';
+      }
+
+      return {
+        month: monthKey,
+        expected,
+        paid,
+        unpaid,
+        status,
+      };
+    });
+
+    // Calculate total unpaid for current and past months
+    const currentMonth = format(new Date(), 'yyyy-MM');
+    const totalUnpaid = recentMonths
+      .filter(m => m.month <= currentMonth)
+      .reduce((sum, m) => sum + m.unpaid, 0);
+
+    return {
+      total,
+      spent,
+      remaining,
+      totalUnpaid,
+      recentMonths,
+    };
+  }, [salary]);
 
   // Money Holdings summary
   const moneyHoldingsSummary = useMemo(() => {
@@ -805,6 +922,102 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
+        {/* Salary Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Salary
+            </CardTitle>
+            <CardDescription>
+              <div className="space-y-1">
+                <p className="text-lg font-semibold text-orange-600">
+                  Total Unpaid: {formatCurrency(salarySummary.totalUnpaid)}
+                </p>
+                <p className="text-xs">
+                  Total outstanding for current and past months
+                </p>
+              </div>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {salarySummary.recentMonths.length > 0 ? (
+                salarySummary.recentMonths.map((item) => {
+                  const [year, month] = item.month.split('-');
+                  const monthName = format(new Date(parseInt(year), parseInt(month) - 1), 'MMMM yyyy');
+
+                  // Determine color and icon based on status
+                  let bgColor = '';
+                  let borderColor = '';
+                  let icon = null;
+                  let statusText = '';
+                  let statusColor = '';
+
+                  if (item.status === 'paid') {
+                    bgColor = 'bg-green-50 dark:bg-green-950';
+                    borderColor = 'border-green-200';
+                    icon = <CheckCircle className="h-4 w-4 text-green-600" />;
+                    statusText = 'Fully Paid';
+                    statusColor = 'text-green-600';
+                  } else if (item.status === 'partial') {
+                    bgColor = 'bg-orange-50 dark:bg-orange-950';
+                    borderColor = 'border-orange-200';
+                    icon = <Clock className="h-4 w-4 text-orange-600" />;
+                    statusText = `${formatCurrency(item.unpaid)} unpaid`;
+                    statusColor = 'text-orange-600';
+                  } else {
+                    bgColor = 'bg-red-50 dark:bg-red-950';
+                    borderColor = 'border-red-200';
+                    icon = <AlertCircle className="h-4 w-4 text-red-600" />;
+                    statusText = 'Not Paid';
+                    statusColor = 'text-red-600';
+                  }
+
+                  return (
+                    <div
+                      key={item.month}
+                      className={`flex items-center justify-between p-2 rounded-lg ${bgColor} border ${borderColor}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {icon}
+                        <div>
+                          <p className="text-sm font-medium">{monthName}</p>
+                          <p className={`text-xs font-semibold ${statusColor}`}>
+                            {statusText}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">
+                          {formatCurrency(item.paid)}
+                        </p>
+                        {item.expected > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            of {formatCurrency(item.expected)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No salary data available
+                </p>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              className="w-full mt-4"
+              onClick={() => navigate('/salary')}
+            >
+              View Salary
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Money Holdings Details */}
         <Card className="border-0 shadow-lg">
           <CardHeader>
@@ -941,7 +1154,7 @@ export default function Dashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-7">
             <Button onClick={() => navigate('/transactions')} variant="outline">
               Transactions
             </Button>
@@ -950,6 +1163,9 @@ export default function Dashboard() {
             </Button>
             <Button onClick={() => navigate('/vibes-salary')} variant="outline">
               Vibes Salary
+            </Button>
+            <Button onClick={() => navigate('/salary')} variant="outline">
+              Salary
             </Button>
             <Button onClick={() => navigate('/money-tracking')} variant="outline">
               Money Tracker
