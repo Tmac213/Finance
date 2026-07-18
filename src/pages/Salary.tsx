@@ -59,6 +59,9 @@ export default function Salary() {
   const [expectedSalary, setExpectedSalary] = useState(
     salary.expectedAmount.toString()
   );
+  const [expectedStartDate, setExpectedStartDate] = useState(
+    salary.startDate || '2023-05'
+  );
   const [monthlyExpectedSalary, setMonthlyExpectedSalary] = useState('');
   const [bulkStartDate, setBulkStartDate] = useState('');
   const [bulkSalaryAmount, setBulkSalaryAmount] = useState('');
@@ -78,10 +81,10 @@ export default function Salary() {
     );
   };
 
-  // Generate months from May 2023 to current month + future months
+  // Generate months from startDate to current month + future months
   const generateMonthRange = () => {
     const months = [];
-    const startDate = new Date('2023-05-01');
+    const startDate = new Date((salary.startDate || '2023-05') + '-01');
     const futureDate = new Date();
     futureDate.setFullYear(futureDate.getFullYear() + 2); // Add 2 years into the future
 
@@ -320,7 +323,10 @@ export default function Salary() {
     setIsLoading(true);
     setLoadingAction('update-salary');
     try {
-      await updateSalary({ expectedAmount: parseFloat(expectedSalary) });
+      await updateSalary({ 
+        expectedAmount: parseFloat(expectedSalary),
+        startDate: expectedStartDate || '2023-05' 
+      });
       toast({
         title: 'Salary Updated',
         description: `Expected salary updated to $${expectedSalary}`,
@@ -591,9 +597,10 @@ export default function Salary() {
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
-                  onClick={() =>
-                    setExpectedSalary(salary.expectedAmount.toString())
-                  }
+                  onClick={() => {
+                    setExpectedSalary(salary.expectedAmount.toString());
+                    setExpectedStartDate(salary.startDate || '2023-05');
+                  }}
                 >
                   <DollarSign className="mr-2 h-4 w-4" />
                   Update Expected Salary
@@ -614,6 +621,15 @@ export default function Salary() {
                       type="number"
                       value={expectedSalary}
                       onChange={(e) => setExpectedSalary(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="expected-start-date">Salary Start Date</Label>
+                    <Input
+                      id="expected-start-date"
+                      type="month"
+                      value={expectedStartDate}
+                      onChange={(e) => setExpectedStartDate(e.target.value)}
                     />
                   </div>
                   <Button onClick={handleUpdateSalary} className="w-full" disabled={isLoading && loadingAction === 'update-salary'}>

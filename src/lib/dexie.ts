@@ -38,6 +38,7 @@ export interface VibesSalaryRow {
   id: string;
   user_id: string;
   expected_amount?: number;
+  start_date?: string;
   monthly_expected_amounts?: Record<string, number>;
   payments?: Array<{
     id: string;
@@ -55,6 +56,7 @@ export interface SalaryRow {
   id: string;
   user_id: string;
   expected_amount?: number;
+  start_date?: string;
   monthly_expected_amounts?: Record<string, number>;
   payments?: Array<{
     id: string;

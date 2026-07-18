@@ -19,7 +19,7 @@ export interface Transaction {
   amount: number;
   category: string;
   date: string;
-  source?: 'transaction' | 'fixed-due' | 'vibes-salary';
+  source?: 'transaction' | 'fixed-due' | 'vibes-salary' | 'salary';
   source_id?: string;
 }
 
@@ -58,6 +58,7 @@ export interface CreateFixedDue extends Omit<FixedDue, 'id' | 'dueDate'> { }
 
 export interface VibesSalary {
   expectedAmount: number;
+  startDate?: string;
   monthlyExpectedAmounts?: Record<string, number>; // YYYY-MM -> amount
   payments: {
     id: string;
@@ -69,6 +70,7 @@ export interface VibesSalary {
 
 export interface Salary {
   expectedAmount: number;
+  startDate?: string;
   monthlyExpectedAmounts?: Record<string, number>; // YYYY-MM -> amount
   payments: {
     id: string;
@@ -531,6 +533,7 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
       if (vibesSalaryData && !Boolean(vibesSalaryData.deleted)) {
         setVibesSalary({
           expectedAmount: vibesSalaryData.expected_amount || 0,
+          startDate: vibesSalaryData.start_date || '2023-05-01',
           monthlyExpectedAmounts: vibesSalaryData.monthly_expected_amounts || {},
           payments: vibesSalaryData.payments || [],
         });
@@ -539,6 +542,7 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
       if (salaryData && !Boolean(salaryData.deleted)) {
         setSalary({
           expectedAmount: salaryData.expected_amount || 0,
+          startDate: salaryData.start_date || '2023-05-01',
           monthlyExpectedAmounts: salaryData.monthly_expected_amounts || {},
           payments: salaryData.payments || [],
         });
@@ -1287,6 +1291,7 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
 
     const updateData = {
       expected_amount: newExpectedAmount,
+      start_date: salary.startDate !== undefined ? salary.startDate : currentSalary.startDate,
       monthly_expected_amounts: newMonthlyAmounts,
       payments: newPayments,
       dirty: 1,
@@ -1376,9 +1381,9 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
 
 
   const calculateSalaryAllocations = (currentVibesSalary: VibesSalary) => {
-    // Generate months from May 2023 to 2 years in future (logic from VibesSalary.tsx)
+    // Generate months from startDate to 2 years in future
     const months: string[] = [];
-    const startDate = new Date('2023-05-01');
+    const startDate = new Date((currentVibesSalary.startDate || '2023-05') + '-01');
     const futureDate = new Date();
     futureDate.setFullYear(futureDate.getFullYear() + 2);
 
@@ -1617,6 +1622,7 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
 
     const updateData = {
       expected_amount: newExpectedAmount,
+      start_date: salaryUpdate.startDate !== undefined ? salaryUpdate.startDate : currentSalary.startDate,
       monthly_expected_amounts: newMonthlyAmounts,
       payments: newPayments,
       dirty: 1,
@@ -1697,7 +1703,7 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
 
   const calculateGeneralSalaryAllocations = (currentSalary: Salary) => {
     const months: string[] = [];
-    const startDate = new Date('2023-05-01');
+    const startDate = new Date((currentSalary.startDate || '2023-05') + '-01');
     const futureDate = new Date();
     futureDate.setFullYear(futureDate.getFullYear() + 2);
 
