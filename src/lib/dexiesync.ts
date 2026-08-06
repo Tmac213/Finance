@@ -152,11 +152,6 @@ export const dexieSync = {
         await setDoc(ref, { ...sanitizeData(data), updatedAt: Timestamp.now() });
         await dexieDb.vibes_salary.update(vibe.id, { dirty: 0, synced: 1 });
         stats.vibesSalary.sent++;
-// Duplicate vibesSalary to Salary singleton
-const salaryRefDup = doc(firestoreDb, 'users', userId, 'salary', 'main');
-await setDoc(salaryRefDup, { ...sanitizeData(data), updatedAt: Timestamp.now() });
-await dexieDb.salary.put({ ...data, id: vibe.id, user_id: userId, dirty: 0, synced: 1 });
-stats.salary.sent++;
       }
 
       // --- SALARY ---
