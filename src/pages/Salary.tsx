@@ -96,17 +96,11 @@ export default function Salary() {
     return months;
   };
 
-  const getDisplayedMonths = () => {
-    const explicitMonths = Object.keys(salary.monthlyExpectedAmounts || {});
-    const paymentMonths = salary.payments.map(p => format(new Date(p.date), 'yyyy-MM'));
-    const allMonths = new Set([...explicitMonths, ...paymentMonths]);
-    const startMonth = salary.startDate || '2023-05';
-    return Array.from(allMonths).filter(m => m >= startMonth).sort();
-  };
+
 
   // Allocate payments FIFO (First In, First Out) to earliest unpaid months
   const allocatePaymentsToMonths = () => {
-    const months = getDisplayedMonths();
+    const months = generateMonthRange();
     const allocation: Record<
       string,
       {
