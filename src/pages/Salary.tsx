@@ -531,6 +531,28 @@ export default function Salary() {
     }
   };
 
+  const handleDeleteAllPayments = async () => {
+    if (!confirm('Are you sure you want to delete all salary payments? This action cannot be undone.')) return;
+    setIsLoading(true);
+    setLoadingAction('delete-all-payments');
+    try {
+      await updateSalary({ payments: [] });
+      toast({
+        title: 'Payments Deleted',
+        description: 'All salary payments have been deleted.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete all payments. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+      setLoadingAction('');
+    }
+  };
+
   return (
     <>
       <div className="space-y-6">
@@ -890,6 +912,18 @@ export default function Salary() {
                 </div>
               </DialogContent>
             </Dialog>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAllPayments}
+              disabled={salary.payments.length === 0 || (isLoading && loadingAction === 'delete-all-payments')}
+            >
+              {isLoading && loadingAction === 'delete-all-payments' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Delete All
+            </Button>
           </div>
         </div>
 
