@@ -392,8 +392,8 @@ export default function FixedDues() {
             bValue = b.recurrence;
             break;
           case 'dueDate':
-            aValue = new Date(a.dueDate).getTime();
-            bValue = new Date(b.dueDate).getTime();
+            aValue = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+            bValue = b.dueDate ? new Date(b.dueDate).getTime() : 0;
             break;
           case 'paidDate':
             aValue = a.paidDate ? new Date(a.paidDate).getTime() : Infinity;
