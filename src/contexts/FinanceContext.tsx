@@ -1383,11 +1383,18 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
   const calculateSalaryAllocations = (currentVibesSalary: VibesSalary) => {
     // Generate months from startDate to 2 years in future
     const months: string[] = [];
-    const startDate = new Date((currentVibesSalary.startDate || '2023-05') + '-01');
+    let startYearMonth = '2023-05';
+    if (currentVibesSalary.startDate && currentVibesSalary.startDate.length >= 7) {
+      startYearMonth = currentVibesSalary.startDate.slice(0, 7);
+    }
+    const [yearStr, monthStr] = startYearMonth.split('-');
+    const startYear = parseInt(yearStr, 10) || 2023;
+    const startMonth = (parseInt(monthStr, 10) || 5) - 1;
+
+    const current = new Date(startYear, startMonth, 1);
     const futureDate = new Date();
     futureDate.setFullYear(futureDate.getFullYear() + 2);
 
-    const current = new Date(startDate);
     while (current <= futureDate) {
       months.push(format(current, 'yyyy-MM'));
       current.setMonth(current.getMonth() + 1);
@@ -1703,11 +1710,18 @@ export function FinanceProvider({ children }: { children: ReactNode }): ReactNod
 
   const calculateGeneralSalaryAllocations = (currentSalary: Salary) => {
     const months: string[] = [];
-    const startDate = new Date((currentSalary.startDate || '2023-05') + '-01');
+    let startYearMonth = '2023-05';
+    if (currentSalary.startDate && currentSalary.startDate.length >= 7) {
+      startYearMonth = currentSalary.startDate.slice(0, 7);
+    }
+    const [yearStr, monthStr] = startYearMonth.split('-');
+    const startYear = parseInt(yearStr, 10) || 2023;
+    const startMonth = (parseInt(monthStr, 10) || 5) - 1;
+
+    const current = new Date(startYear, startMonth, 1);
     const futureDate = new Date();
     futureDate.setFullYear(futureDate.getFullYear() + 2);
 
-    const current = new Date(startDate);
     while (current <= futureDate) {
       months.push(format(current, 'yyyy-MM'));
       current.setMonth(current.getMonth() + 1);

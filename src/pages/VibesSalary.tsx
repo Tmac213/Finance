@@ -79,11 +79,18 @@ export default function VibesSalary() {
   // Generate months from May 2023 to current month + future months
   const generateMonthRange = () => {
     const months = [];
-    const startDate = new Date('2023-05-01');
+    let startYearMonth = '2023-05';
+    if (vibesSalary.startDate && vibesSalary.startDate.length >= 7) {
+      startYearMonth = vibesSalary.startDate.slice(0, 7);
+    }
+    const [yearStr, monthStr] = startYearMonth.split('-');
+    const startYear = parseInt(yearStr, 10) || 2023;
+    const startMonth = (parseInt(monthStr, 10) || 5) - 1;
+
+    const current = new Date(startYear, startMonth, 1);
     const futureDate = new Date();
     futureDate.setFullYear(futureDate.getFullYear() + 2); // Add 2 years into the future
 
-    const current = new Date(startDate);
     while (current <= futureDate) {
       months.push(format(current, 'yyyy-MM'));
       current.setMonth(current.getMonth() + 1);

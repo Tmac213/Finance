@@ -84,11 +84,18 @@ export default function Salary() {
   // Generate months from startDate to current month + future months
   const generateMonthRange = () => {
     const months = [];
-    const startDate = new Date((salary.startDate || '2023-05') + '-01');
+    let startYearMonth = '2023-05';
+    if (salary.startDate && salary.startDate.length >= 7) {
+      startYearMonth = salary.startDate.slice(0, 7);
+    }
+    const [yearStr, monthStr] = startYearMonth.split('-');
+    const startYear = parseInt(yearStr, 10) || 2023;
+    const startMonth = (parseInt(monthStr, 10) || 5) - 1;
+
+    const current = new Date(startYear, startMonth, 1);
     const futureDate = new Date();
     futureDate.setFullYear(futureDate.getFullYear() + 2); // Add 2 years into the future
 
-    const current = new Date(startDate);
     while (current <= futureDate) {
       months.push(format(current, 'yyyy-MM'));
       current.setMonth(current.getMonth() + 1);

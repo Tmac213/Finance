@@ -281,13 +281,19 @@ export function getSalaryMonthlyOverviewRows(data: SalaryDataForExport) {
     return data.monthlyExpectedAmounts?.[monthYear] || data.expectedAmount;
   };
 
-  const startDateStr = data.startDate || '2023-05';
-  const startDate = new Date(startDateStr + '-01');
+  let startYearMonth = '2023-05';
+  if (data.startDate && data.startDate.length >= 7) {
+    startYearMonth = data.startDate.slice(0, 7);
+  }
+  const [yearStr, monthStr] = startYearMonth.split('-');
+  const startYear = parseInt(yearStr, 10) || 2023;
+  const startMonth = (parseInt(monthStr, 10) || 5) - 1;
+
+  const current = new Date(startYear, startMonth, 1);
   const futureDate = new Date();
   futureDate.setFullYear(futureDate.getFullYear() + 2);
 
   const months: string[] = [];
-  const current = new Date(startDate);
   while (current <= futureDate) {
     months.push(format(current, 'yyyy-MM'));
     current.setMonth(current.getMonth() + 1);
@@ -515,13 +521,12 @@ export function exportVibesSalaryToPDF(vibes: VibesSalary) {
       valign: 'middle',
     },
     columnStyles: {
-      0: { cellWidth: 24, halign: 'center' },
-      1: { cellWidth: 18, halign: 'right' },
-      2: { cellWidth: 18, halign: 'right' },
-      3: { cellWidth: 50 },
-      4: { cellWidth: 32, halign: 'center' },
-      5: { cellWidth: 22, halign: 'center' },
-      6: { cellWidth: 18, halign: 'center' },
+      0: { halign: 'center' },
+      1: { halign: 'right' },
+      2: { halign: 'right' },
+      4: { halign: 'center' },
+      5: { halign: 'center' },
+      6: { halign: 'center' },
     },
     alternateRowStyles: {
       fillColor: [249, 250, 251],
@@ -681,13 +686,12 @@ export function exportSalaryToPDF(sal: Salary) {
       valign: 'middle',
     },
     columnStyles: {
-      0: { cellWidth: 24, halign: 'center' },
-      1: { cellWidth: 18, halign: 'right' },
-      2: { cellWidth: 18, halign: 'right' },
-      3: { cellWidth: 50 },
-      4: { cellWidth: 32, halign: 'center' },
-      5: { cellWidth: 22, halign: 'center' },
-      6: { cellWidth: 18, halign: 'center' },
+      0: { halign: 'center' },
+      1: { halign: 'right' },
+      2: { halign: 'right' },
+      4: { halign: 'center' },
+      5: { halign: 'center' },
+      6: { halign: 'center' },
     },
     alternateRowStyles: {
       fillColor: [249, 250, 251],
